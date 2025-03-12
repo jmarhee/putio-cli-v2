@@ -1,0 +1,111 @@
+package main
+
+import (
+	"archive/zip"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+)
+
+// download handles the downloading process
+func download(url string, username string, password string, libraryPath string, librarySubpath string) (string, error) {
+	dlDir := filepath.Join(libraryPath, librarySubpath)
+	if _, err := os.Stat(dlDir); os.IsNotExist(err) {
+		os.MkdirAll(dlDir, os.ModePerm)
+	}
+
+	fileName := filepath.Base(url)
+	filePath := filepath.Join(dlDir, fileName)
+
+	fmt.Printf("Downloading %s to %s\n", url, filePath)
+	err := downloadFile(url, filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}
+
+// downloadFile downloads a file from the given URL
+func downloadFile(url string, filepath string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+// extract handles the extraction process
+func extract(filePath string, libraryPath string, librarySubpath string) error {
+	destDir := filepath.Join(libraryPath, librarySubpath)
+	fmt.Printf("Extracting %s to %s\n", filePath, destDir)
+
+	err := extractZip(filePath, destDir)
+	if err != nil {
+		return err
+	}
+
+	// Remove the archive if PUTIO_CLEAN is set to 1
+	if os.Getenv("PUTIO_CLEAN") == "1" {
+		err = os.Remove(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to remove archive: %v", err)
+		}
+		fmt.Printf("Removed archive %s\n", filePath)
+	}
+
+	return nil
+}
+
+// extractZip extracts a zip file to the specified directory
+func extractZip(src string, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		fpath := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, os.ModePerm)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+			return err
+		}
+
+		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+
+		outFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

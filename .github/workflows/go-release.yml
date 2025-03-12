@@ -1,0 +1,41 @@
+name: Go Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.16"
+
+      - name: Build and release binaries
+        uses: wangyoucao577/go-release-action@v1.36
+        with:
+          # Define the build matrix
+          targets: |
+            linux/amd64
+            linux/arm64
+            darwin/amd64
+            darwin/arm64
+          # Define the main package
+          main: ./...
+          # Define the binary name
+          binary_name: putio-cli
+          # Define the GitHub token
+          github_token: ${{ secrets.PUTIO_GITHUB_TOKEN }}
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v2
+        with:
+          name: putio-cli-binaries
+          path: dist/*
