@@ -6,31 +6,32 @@ on:
       - "v*"
 
 jobs:
-  release:
+  releases-matrix:
+    name: Release Go Binary
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # build and publish in parallel: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: "^1.16"
+          go-version: "^1.23"
 
       - name: Build and release binaries
-        uses: wangyoucao577/go-release-action@v1.36
+        uses: wangyoucao577/go-release-action@v1.53
         with:
           # Define the build matrix
-          targets: |
-            linux/amd64
-            linux/arm64
-            darwin/amd64
-            darwin/arm64
-          # Define the main package
-          main: ./...
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
           # Define the binary name
-          binary_name: putio-cli
+          binary_name: putio-cli-${{ matrix.goos }}-${{ matrix.goarch }}
           # Define the GitHub token
           github_token: ${{ secrets.PUTIO_GITHUB_TOKEN }}
 
@@ -38,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: putio-cli-binaries
-          path: dist/*
+          path: putio-cli-${{ matrix.goos }}-${{ matrix.goarch }}
