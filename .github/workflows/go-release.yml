@@ -35,7 +35,7 @@ jobs:
           github_token: ${{ secrets.PUTIO_GITHUB_TOKEN }}
 
       - name: Upload release assets
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: putio-cli-binaries
           path: dist/*
