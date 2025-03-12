@@ -32,6 +32,7 @@ jobs:
           goarch: ${{ matrix.goarch }}
           # Define the binary name
           binary_name: putio-cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          asset_name: putio-cli-${{ matrix.goos }}-${{ matrix.goarch }}
           # Define the GitHub token
           github_token: ${{ secrets.PUTIO_GITHUB_TOKEN }}
 
