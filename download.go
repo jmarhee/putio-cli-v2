@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/gregdel/pushover"
+	"github.com/schollz/progressbar/v3"
 )
 
 // download handles the downloading process
@@ -20,9 +24,17 @@ func download(url string, username string, password string, libraryPath string, 
 	filePath := filepath.Join(dlDir, fileName)
 
 	fmt.Printf("Downloading %s to %s\n", url, filePath)
+
+	start := time.Now()
 	err := downloadFile(url, filePath)
 	if err != nil {
 		return "", err
+	}
+	duration := time.Since(start)
+	fmt.Printf("Download completed in %s\n", duration)
+
+	if os.Getenv("PUTIO_NOTIFY") == "1" {
+		sendPushoverNotification("Download completed", fmt.Sprintf("File %s downloaded in %s", fileName, duration))
 	}
 
 	return filePath, nil
@@ -42,7 +54,12 @@ func downloadFile(url string, filepath string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
+	bar := progressbar.DefaultBytes(
+		resp.ContentLength,
+		"downloading",
+	)
+
+	_, err = io.Copy(io.MultiWriter(out, bar), resp.Body)
 	return err
 }
 
@@ -51,9 +68,16 @@ func extract(filePath string, libraryPath string, librarySubpath string) error {
 	destDir := filepath.Join(libraryPath, librarySubpath)
 	fmt.Printf("Extracting %s to %s\n", filePath, destDir)
 
+	start := time.Now()
 	err := extractZip(filePath, destDir)
 	if err != nil {
 		return err
+	}
+	duration := time.Since(start)
+	fmt.Printf("Extraction completed in %s\n", duration)
+
+	if os.Getenv("PUTIO_NOTIFY") == "1" {
+		sendPushoverNotification("Extraction completed", fmt.Sprintf("File %s extracted in %s", filepath.Base(filePath), duration))
 	}
 
 	// Remove the archive if PUTIO_CLEAN is set to 1
@@ -108,4 +132,21 @@ func extractZip(src string, dest string) error {
 		}
 	}
 	return nil
+}
+
+// sendPushoverNotification sends a notification using the Pushover API
+func sendPushoverNotification(title, message string) {
+	appToken := os.Getenv("PUSHOVER_TOKEN")
+	userKey := os.Getenv("PUSHOVER_USER")
+
+	app := pushover.New(appToken)
+	recipient := pushover.NewRecipient(userKey)
+
+	msg := pushover.NewMessageWithTitle(message, title)
+	_, err := app.SendMessage(msg, recipient)
+	if err != nil {
+		fmt.Printf("Failed to send Pushover notification: %v\n", err)
+	} else {
+		fmt.Println("Pushover notification sent successfully")
+	}
 }
