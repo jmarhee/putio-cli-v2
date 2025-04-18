@@ -13,8 +13,8 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// download handles the downloading process
-func download(url string, username string, password string, libraryPath string, librarySubpath string) (string, error) {
+// downloadWithClient handles the downloading process using a custom HTTP client
+func downloadWithClient(client *http.Client, url string, username string, password string, libraryPath string, librarySubpath string) (string, error) {
 	dlDir := filepath.Join(libraryPath, librarySubpath)
 	if _, err := os.Stat(dlDir); os.IsNotExist(err) {
 		os.MkdirAll(dlDir, os.ModePerm)
@@ -26,7 +26,7 @@ func download(url string, username string, password string, libraryPath string, 
 	fmt.Printf("Downloading %s to %s\n", url, filePath)
 
 	start := time.Now()
-	err := downloadFile(url, filePath)
+	err := downloadFileWithClient(client, url, filePath)
 	if err != nil {
 		return "", err
 	}
@@ -40,9 +40,9 @@ func download(url string, username string, password string, libraryPath string, 
 	return filePath, nil
 }
 
-// downloadFile downloads a file from the given URL
-func downloadFile(url string, filepath string) error {
-	resp, err := http.Get(url)
+// downloadFileWithClient downloads a file from the given URL using a custom HTTP client
+func downloadFileWithClient(client *http.Client, url string, filepath string) error {
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
